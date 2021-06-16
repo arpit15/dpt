@@ -12,6 +12,7 @@
 #include "envlight.h"
 #include "lambertian.h"
 #include "phong.h"
+#include "roughconductor.h"
 #include "roughdielectric.h"
 #include "constanttexture.h"
 #include "bitmaptexture.h"
@@ -376,6 +377,38 @@ std::shared_ptr<const BSDF> ParseBSDF(pugi::xml_node node,
         }
         return std::make_shared<RoughDielectric>(
             twoSided, specularReflectance, specularTransmittance, intIOR, extIOR, alpha);
+    } else if (type == "roughconductor") {
+        // default params
+        std::shared_ptr<const TextureRGB> specularReflectance =
+            std::make_shared<const ConstantTextureRGB>(Vector3(1.0, 1.0, 1.0));
+        
+        Float intIOR = 1.5046;
+        Float extIOR = 1.000277;
+        Vector1 v(0.1);
+        std::shared_ptr<const Texture1D> alpha = std::make_shared<const ConstantTexture1D>(v);
+
+        std::cout << "parsing roughconductor" << std::endl;
+        for (auto child : node.children()) {
+            std::string name = child.attribute("name").value();
+            // std::cout << "name : " << name << std::endl;
+            if (name == "eta") {
+                intIOR = std::stof(child.attribute("value").value());
+            } else if (name == "extEta") {
+                extIOR = std::stof(child.attribute("value").value());
+            } else if (name == "alpha") {
+                alpha = Parse1DMap(child, textureMap);
+            } else if (name == "specularReflectance") {
+                std::string value = child.attribute("value").value();
+                specularReflectance = Parse3DMap(child, textureMap);
+            }
+        }
+
+        // std::cout << "RoughConductor [" << std::endl
+        //             << "eta : " << intIOR << std::endl
+        //             << "extIOR : " << extIOR << std::endl
+        //             << "alpha : " << alpha->Avg() << std::endl;
+        return std::make_shared<RoughConductor>(
+            twoSided, specularReflectance, intIOR, extIOR, alpha);
     } else if (type == "twosided") {
         for (auto child : node.children()) {
             if (std::string(child.name()) == "bsdf") {
