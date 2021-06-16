@@ -6,6 +6,8 @@
 #include <OpenImageIO/imagebufalgo.h>
 #include <stdexcept>
 
+namespace OpenImageIO = OIIO;
+
 template <int nChannels>
 class BitmapTexture : public Texture<nChannels> {
     public:

@@ -1,9 +1,9 @@
 #include "image.h"
 
 #include <OpenImageIO/imageio.h>
-
+namespace OpenImageIO = OIIO;
 Image3::Image3(const std::string &filename) {
-    OpenImageIO::ImageInput *in = OpenImageIO::ImageInput::open(filename);
+    std::unique_ptr<OpenImageIO::ImageInput> in = OpenImageIO::ImageInput::open(filename);
     if (in == nullptr) {
         Error("File not found");
     }
@@ -43,7 +43,7 @@ Image3::Image3(const std::string &filename) {
 }
 
 void WriteImage(const std::string &filename, const Image3 *image) {
-    OpenImageIO::ImageOutput *out = OpenImageIO::ImageOutput::create(filename);
+    std::unique_ptr<OpenImageIO::ImageOutput> out = OpenImageIO::ImageOutput::create(filename);
     if (out == nullptr) {
         Error("Fail to create file");
         return;
@@ -55,5 +55,5 @@ void WriteImage(const std::string &filename, const Image3 *image) {
                                                      : OpenImageIO::TypeDesc::FLOAT,
                      &image->data[0]);
     out->close();
-    OpenImageIO::ImageOutput::destroy(out);
+    // OpenImageIO::ImageOutput::destroy(out);
 }

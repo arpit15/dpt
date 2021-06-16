@@ -104,39 +104,46 @@ void TriangleIntersect(const TRay<FloatType> &ray,
     isect.shadingNormal = Normalize(TVector3<FloatType>(w * n0 + uv[0] * n1 + uv[1] * n2));
 }
 
-ShapeID TriangleMesh::RtcRegister(const RTCScene &rtcScene) const {
+ShapeID TriangleMesh::RtcRegister(const RTCScene &rtcScene, const RTCDevice &rtcDevice) const {
     struct Vertex {
         float x, y, z, a;
     };
     struct Index {
         uint32_t v0, v1, v2;
     };
-    ShapeID geomID = rtcNewTriangleMesh(rtcScene,
-                                        RTC_GEOMETRY_STATIC,
-                                        data->indices.size(),
-                                        data->position0.size(),
-                                        data->isMoving ? 2 : 1);
+    // ShapeID geomID = rtcNewTriangleMesh(rtcScene,
+    //                                     RTC_GEOMETRY_STATIC,
+    //                                     data->indices.size(),
+    //                                     data->position0.size(),
+    //                                     data->isMoving ? 2 : 1);
+
+    RTCGeometry geom_0 = rtcNewGeometry(rtcDevice, RTC_GEOMETRY_TYPE_TRIANGLE); // EMBREE_FIXME: check if geometry gets properly committed
+     rtcSetGeometryBuildQuality(geom_0,RTC_BUILD_QUALITY_MEDIUM);
+     rtcSetGeometryTimeStepCount(geom_0,data->isMoving ? 2 : 1);
+    ShapeID geomID = rtcAttachGeometry(rtcScene,geom_0);
+     rtcReleaseGeometry(geom_0);
 
     if (!data->isMoving) {
-        Vertex *vertices = (Vertex *)rtcMapBuffer(rtcScene, geomID, RTC_VERTEX_BUFFER);
+        Vertex *vertices = (Vertex *)rtcSetNewGeometryBuffer(geom_0,RTC_BUFFER_TYPE_VERTEX,0,RTC_FORMAT_FLOAT3,4*sizeof(float),data->position0.size());
         for (const auto &p : data->position0)
             *vertices++ = Vertex{float(p[0]), float(p[1]), float(p[2]), 0.0f};
-        rtcUnmapBuffer(rtcScene, geomID, RTC_VERTEX_BUFFER);
+        
     } else {
-        Vertex *vertices0 = (Vertex *)rtcMapBuffer(rtcScene, geomID, RTC_VERTEX_BUFFER0);
+        Vertex *vertices0 = (Vertex *)rtcSetNewGeometryBuffer(geom_0,RTC_BUFFER_TYPE_VERTEX,0,RTC_FORMAT_FLOAT3,4*sizeof(float),data->position0.size());
         for (const auto &p : data->position0)
             *vertices0++ = Vertex{float(p[0]), float(p[1]), float(p[2]), 0.0f};
-        rtcUnmapBuffer(rtcScene, geomID, RTC_VERTEX_BUFFER0);
-        Vertex *vertices1 = (Vertex *)rtcMapBuffer(rtcScene, geomID, RTC_VERTEX_BUFFER1);
+        
+        Vertex *vertices1 = (Vertex *)rtcSetNewGeometryBuffer(geom_0,RTC_BUFFER_TYPE_VERTEX,1,RTC_FORMAT_FLOAT3,4*sizeof(float),data->position0.size());
         for (const auto &p : data->position1)
             *vertices1++ = Vertex{float(p[0]), float(p[1]), float(p[2]), 0.0f};
-        rtcUnmapBuffer(rtcScene, geomID, RTC_VERTEX_BUFFER1);
+        
     }
 
-    Index *indices = (Index *)rtcMapBuffer(rtcScene, geomID, RTC_INDEX_BUFFER);
+    Index *indices = (Index *)rtcSetNewGeometryBuffer(geom_0,RTC_BUFFER_TYPE_INDEX,0,RTC_FORMAT_UINT3,3*sizeof(int),data->indices.size());
     for (const auto &i : data->indices)
         *indices++ = Index{i.index[0], i.index[1], i.index[2]};
-    rtcUnmapBuffer(rtcScene, geomID, RTC_INDEX_BUFFER);
+    
+    rtcCommitGeometry(geom_0);
     return geomID;
 }
 

@@ -4,8 +4,8 @@
 #include "bounds.h"
 #include "ray.h"
 
-#include <embree2/rtcore.h>
-#include <embree2/rtcore_ray.h>
+#include <embree3/rtcore.h>
+#include <embree3/rtcore_ray.h>
 
 struct AreaLight;
 struct BSDF;
@@ -28,7 +28,7 @@ struct Shape {
     Shape(const std::shared_ptr<const BSDF> bsdf) : bsdf(bsdf), areaLight(nullptr) {
     }
     virtual ShapeType GetType() const = 0;
-    virtual ShapeID RtcRegister(const RTCScene &scene) const = 0;
+    virtual ShapeID RtcRegister(const RTCScene &scene, const RTCDevice &device) const = 0;
     virtual void Serialize(const PrimID primID, Float *buffer) const = 0;
     virtual bool Intersect(const PrimID &primID,
                            const Float time,

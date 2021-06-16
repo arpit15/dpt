@@ -1,6 +1,7 @@
 #include "bsdf.h"
 #include "lambertian.h"
 #include "phong.h"
+#include "roughconductor.h"
 #include "roughdielectric.h"
 #include "utils.h"
 
@@ -35,6 +36,13 @@ const ADFloat *EvaluateBSDF(const bool adjoint,
         ADVector3 contrib;
         ADFloat cosWo, pdf, revPdf;
         EvaluateRoughDielectric(adjoint, buffer, wi, normal, wo, st, contrib, cosWo, pdf, revPdf);
+        SetCondOutput({contrib[0], contrib[1], contrib[2], cosWo, pdf, revPdf});
+    }
+    BeginElseIf(Eq(type, (Float)BSDFType::RoughConductor));
+    {
+        ADVector3 contrib;
+        ADFloat cosWo, pdf, revPdf;
+        EvaluateRoughConductor(adjoint, buffer, wi, normal, wo, st, contrib, cosWo, pdf, revPdf);
         SetCondOutput({contrib[0], contrib[1], contrib[2], cosWo, pdf, revPdf});
     }
     BeginElseIf(Eq(type, (Float)BSDFType::Lambertian));

@@ -32,7 +32,7 @@ struct TriangleMesh : public Shape {
     ShapeType GetType() const override {
         return ShapeType::TriangleMesh;
     }
-    ShapeID RtcRegister(const RTCScene &scene) const override;
+    ShapeID RtcRegister(const RTCScene &scene, const RTCDevice &device) const override;
     void Serialize(const PrimID primID, Float *buffer) const override;
     bool Intersect(const PrimID &primID,
                    const Float time,

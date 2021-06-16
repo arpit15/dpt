@@ -27,38 +27,89 @@ Scene::Scene(const std::shared_ptr<const DptOptions> &options,
     lightDist =
         std::unique_ptr<PiecewiseConstant1D>(new PiecewiseConstant1D(&weights[0], weights.size()));
     rtcDevice = rtcNewDevice(NULL);
-    rtcScene = rtcDeviceNewScene(
-        rtcDevice,
-        RTC_SCENE_STATIC | RTC_SCENE_INCOHERENT | RTC_SCENE_HIGH_QUALITY | RTC_SCENE_ROBUST,
-        RTC_INTERSECT1);
+    rtcScene = rtcNewScene(rtcDevice);
+    // rtcScene = rtcDeviceNewScene(
+    //     rtcDevice,
+    //     RTC_SCENE_STATIC | RTC_SCENE_INCOHERENT | RTC_SCENE_HIGH_QUALITY | RTC_SCENE_ROBUST,
+    //     RTC_INTERSECT1);
     BBox bbox;
     for (auto &obj : objects) {
-        obj->RtcRegister(rtcScene);
+        obj->RtcRegister(rtcScene, rtcDevice);
         bbox = Merge(bbox, obj->GetBBox());
     }
     bSphere = BSphere(bbox);
-    rtcCommit(rtcScene);
+    // rtcCommit(rtcScene);
+    rtcCommitScene(rtcScene);
 }
 
 Scene::~Scene() {
-    rtcDeleteScene(rtcScene);
-    rtcDeleteDevice(rtcDevice);
+    // rtcDeleteScene(rtcScene);
+    // rtcDeleteDevice(rtcDevice);
+    rtcReleaseScene(rtcScene);
+    rtcReleaseDevice (rtcDevice);
+}
+
+static inline RTCRayHit ToRTCHitRay(const Float time, const RaySegment &raySeg) {
+    const Ray &ray = raySeg.ray;
+    RTCRayHit rtcRay; // EMBREE_FIXME: use RTCRay for occlusion rays
+    rtcRay.ray.flags = 0;
+     
+    assert(std::isfinite(ray.org[0]));
+    assert(std::isfinite(ray.dir[0]));
+    rtcRay.ray.org_x = float(ray.org[0]);
+    rtcRay.ray.dir_x = float(ray.dir[0]);
+    assert(std::isfinite(ray.org[1]));
+    assert(std::isfinite(ray.dir[1]));
+    rtcRay.ray.org_y = float(ray.org[1]);
+    rtcRay.ray.dir_y = float(ray.dir[1]);
+    assert(std::isfinite(ray.org[2]));
+    assert(std::isfinite(ray.dir[2]));
+    rtcRay.ray.org_z = float(ray.org[2]);
+    rtcRay.ray.dir_z = float(ray.dir[2]);
+
+    rtcRay.ray.tnear = float(raySeg.minT);
+    rtcRay.ray.tfar = float(raySeg.maxT);
+    rtcRay.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+    rtcRay.hit.primID = RTC_INVALID_GEOMETRY_ID;
+    rtcRay.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
+    rtcRay.ray.mask = 0xFFFFFFFF;
+    rtcRay.ray.time = float(time);
+    return rtcRay;
 }
 
 static inline RTCRay ToRTCRay(const Float time, const RaySegment &raySeg) {
     const Ray &ray = raySeg.ray;
     RTCRay rtcRay;
-    for (int i = 0; i < 3; i++) {
-        assert(std::isfinite(ray.org[i]));
-        assert(std::isfinite(ray.dir[i]));
-        rtcRay.org[i] = float(ray.org[i]);
-        rtcRay.dir[i] = float(ray.dir[i]);
-    }
+    // for (int i = 0; i < 3; i++) {
+    //     assert(std::isfinite(ray.org[i]));
+    //     assert(std::isfinite(ray.dir[i]));
+    //     rtcRay.org[i] = float(ray.org[i]);
+    //     rtcRay.dir[i] = float(ray.dir[i]);
+    // }
+    // rtcRay.tnear = float(raySeg.minT);
+    // rtcRay.tfar = float(raySeg.maxT);
+    // rtcRay.geomID = RTC_INVALID_GEOMETRY_ID;
+    // rtcRay.primID = RTC_INVALID_GEOMETRY_ID;
+    // rtcRay.instID = RTC_INVALID_GEOMETRY_ID;
+    // rtcRay.mask = 0xFFFFFFFF;
+    // rtcRay.time = float(time);
+    // return rtcRay;
+
+    assert(std::isfinite(ray.org[0]));
+    assert(std::isfinite(ray.dir[0]));
+    rtcRay.org_x = float(ray.org[0]);
+    rtcRay.dir_x = float(ray.dir[0]);
+    assert(std::isfinite(ray.org[1]));
+    assert(std::isfinite(ray.dir[1]));
+    rtcRay.org_y = float(ray.org[1]);
+    rtcRay.dir_y = float(ray.dir[1]);
+    assert(std::isfinite(ray.org[2]));
+    assert(std::isfinite(ray.dir[2]));
+    rtcRay.org_z = float(ray.org[2]);
+    rtcRay.dir_z = float(ray.dir[2]);
+
     rtcRay.tnear = float(raySeg.minT);
     rtcRay.tfar = float(raySeg.maxT);
-    rtcRay.geomID = RTC_INVALID_GEOMETRY_ID;
-    rtcRay.primID = RTC_INVALID_GEOMETRY_ID;
-    rtcRay.instID = RTC_INVALID_GEOMETRY_ID;
     rtcRay.mask = 0xFFFFFFFF;
     rtcRay.time = float(time);
     return rtcRay;
@@ -68,14 +119,31 @@ bool Intersect(const Scene *scene,
                const Float time,
                const RaySegment &raySeg,
                ShapeInst &shapeInst) {
-    RTCRay rtcRay = ToRTCRay(time, raySeg);
-    rtcIntersect(scene->rtcScene, rtcRay);
-    if (rtcRay.geomID == RTC_INVALID_GEOMETRY_ID) {
+    // RTCRay rtcRay = ToRTCRay(time, raySeg);
+    // rtcIntersect(scene->rtcScene, rtcRay);
+    // if (rtcRay.geomID == RTC_INVALID_GEOMETRY_ID) {
+    //     return false;
+    // }
+
+    // shapeInst.obj = scene->objects[rtcRay.geomID].get();
+    // shapeInst.primID = rtcRay.primID;
+    // return true;
+
+    RTCRayHit rtcRay = ToRTCHitRay(time, raySeg);
+    {
+      RTCIntersectContext context;
+      rtcInitIntersectContext(&context);
+      rtcIntersect1(scene->rtcScene,&context,&rtcRay);
+      rtcRay.hit.Ng_x = -rtcRay.hit.Ng_x; // EMBREE_FIXME: only correct for triangles,quads, and subdivision surfaces
+      rtcRay.hit.Ng_y = -rtcRay.hit.Ng_y;
+      rtcRay.hit.Ng_z = -rtcRay.hit.Ng_z;
+    }
+    if (rtcRay.hit.geomID == RTC_INVALID_GEOMETRY_ID) {
         return false;
     }
 
-    shapeInst.obj = scene->objects[rtcRay.geomID].get();
-    shapeInst.primID = rtcRay.primID;
+    shapeInst.obj = scene->objects[rtcRay.hit.geomID].get();
+    shapeInst.primID = rtcRay.hit.primID;
     return true;
 }
 
@@ -93,8 +161,13 @@ bool Occluded(const Scene *scene, const Float time, const Ray &ray, const Float 
 
 bool Occluded(const Scene *scene, const Float time, const RaySegment &raySeg) {
     RTCRay rtcRay = ToRTCRay(time, raySeg);
-    rtcOccluded(scene->rtcScene, rtcRay);
-    return rtcRay.geomID == 0;
+    {
+      RTCIntersectContext context;
+      rtcInitIntersectContext(&context);
+      rtcOccluded1(scene->rtcScene,&context,&rtcRay);
+      // EMBREE_FIXME: rtcRay is occluded when rtcRay.tfar < 0.0f
+    }
+    return rtcRay.tfar < Float(0.0f);
 }
 
 const Light *PickLight(const Scene *scene, const Float u, Float &prob) {

@@ -2,7 +2,7 @@
 
 #include "commondef.h"
 
-enum class BSDFType { Lambertian, Phong, RoughDielectric };
+enum class BSDFType { Lambertian, Phong, RoughDielectric, RoughConductor };
 
 int GetMaxBSDFSerializedSize();
 
